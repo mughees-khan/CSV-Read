@@ -1,74 +1,87 @@
-import React from 'react';
-import { useState } from 'react';
-import papa from 'papaparse'
-import './App.css';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import "./App.css"
+const App = () => {
+  const [input, setInput] = useState('0');
+  const [result, setResult] = useState(0);
+  const [memory, setMemory] = useState("");
 
-function App() {
+  const calculateResult = useMemo(() => {
+    try {
 
-  const [columnArray, setColumnArray] = useState([]);
-  const [values, setValues] = useState([]);
+      return eval(input);
+    } catch (error) {
+      return '0';
+    }
+  }, [input]);
 
-  const handleFile = (event) => {
-    papa.parse(event.target.files[0], {
+  useEffect(() => {
+    setResult(calculateResult);
+  }, [calculateResult]);
 
-      complete: function (result) {
-        let keys = result.data[0]
-        keys = result.data[0].map(v =>
-          v.toLowerCase()
-            .replace(/ /g, "_")
-            .replace(/[\u0300-\u036f()$%^&]/g, "")
-            .replace(/[.-]/g, "")
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, "")
-        );
-        let value = result.data.slice(1)
-        let objects = value.map(array => {
-          let object = {}
-          keys.forEach((key, i) => object[key] = array[i]);
-          return object
-        })
-        var res = objects.map(obj => Object.values(obj))
-        var response = Object.keys(objects[0]);
+  const handleButtonClick = useCallback(
+    (buttonValue) => {
+      switch (buttonValue) {
+        case '=':
+          setInput(String(result));
+          break;
+        case 'C':
+          setInput('0');
+          setResult(0);
+          break;
+        case 'M':
+          setMemory(result);
+          setInput(result)
+          break;
+        case 'R':
+          setInput((prevInput) => prevInput + memory);
+          break;
+        case '<-':
+          setInput((prevInput) => (prevInput.length > 1 ? prevInput.slice(0, -1) : '0'));
+          break;
+        default:
+          setInput((prevInput) => (prevInput === '0' ? String(buttonValue) : prevInput + buttonValue));
+      }
+    },
+    [result, memory]
+  );
 
-        console.log(response)
-        setColumnArray(response);
-        setValues(res);
-      },
-    });
-  };
+  const handleKeyDown = useCallback(
+    (event) => {
+      const key = event.key;
+
+      if ((key >= '0' && key <= '9') || key === '.' || key === '+' || key === '-' || key === '*' || key === '/' || key === 'Enter') {
+        event.preventDefault();
+        handleButtonClick(key === 'Enter' ? '=' : key);
+      } else if (key === 'Backspace') {
+        handleButtonClick('<-');
+      }
+    },
+    [handleButtonClick]
+  );
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
-    <div className='main'>
-      <div>
-        <div>
-          <input
-            type='file'
-            name='file'
-            accept='.csv'
-            onChange={handleFile}
-          ></input>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              {columnArray.map((col, i) => (
-                <th key={i}>{col}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {values.map((v, i) => (
-              <tr key={i}>
-                {v.map((val, j) => (
-                  <td key={j}>{val}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="calculator">
+      <div className="display">
+        <div className="input">{input}</div>
+        <div className="result">{result}</div>
+      </div>
+      <div className="keypad">
+        {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+', 'C', '<-', 'M', 'R'].map(
+          (button) => (
+            <button key={button} onClick={() => handleButtonClick(button)}>
+              {button}
+            </button>
+          )
+        )}
       </div>
     </div>
   );
-}
+};
 
 export default App;
+
